@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Student Management Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#b91c1c; --surface:#ffffff; --ink:#14232b; --muted:#5b6b73;
+    --line:#d3dde2; --brand:#0f5c6e; --brand-ink:#ffffff; --danger:#b3261e; --ok:#1e6b3a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Figtree,system-ui,Segoe UI,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  header{background:var(--brand);color:var(--brand-ink)}
+  .wrap{max-width:980px;margin:0 auto;padding:0 20px}
+  header .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-top:14px;padding-bottom:14px}
+  h1{font-size:1.25rem;margin:0;font-weight:700}
+  nav{display:flex;gap:4px}
+  nav button{background:transparent;color:var(--brand-ink);border:0;padding:8px 14px;border-radius:6px;font:inherit;cursor:pointer}
+  nav button[aria-current="page"]{background:rgba(255,255,255,.2);font-weight:700}
+  nav button:hover{background:rgba(255,255,255,.12)}
+  main{padding:28px 0 60px}
+  section{display:none}
+  section.active{display:block}
+  h2{font-size:1.5rem;margin:0 0 6px;color:#ffffff}
+  .sub{color:#fde8e8;margin:0 0 20px}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:22px}
+  .stats{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+  .stat{flex:1;min-width:180px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px}
+  .stat b{display:block;font-size:2.6rem;line-height:1.1;color:var(--brand)}
+  form{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  label{display:flex;flex-direction:column;gap:6px;font-weight:500;font-size:.95rem}
+  input{font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  input:focus,button:focus-visible{outline:3px solid #7cc4d4;outline-offset:1px}
+  .full{grid-column:1/-1}
+  .btn{font:inherit;font-weight:700;padding:10px 18px;border-radius:6px;border:1px solid var(--brand);background:var(--brand);color:var(--brand-ink);cursor:pointer}
+  .btn.ghost{background:#fff;color:var(--brand)}
+  .btn.danger{background:#fff;color:var(--danger);border-color:var(--danger)}
+  .btn.small{padding:5px 10px;font-size:.85rem}
+  .actions{display:flex;gap:10px}
+  .toolbar{display:flex;gap:10px;margin-bottom:14px}
+  .toolbar input{flex:1}
+  .table-scroll{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:640px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);font-size:.95rem}
+  th{color:var(--muted);font-weight:500;font-size:.85rem}
+  td.row-actions{display:flex;gap:6px}
+  .empty{padding:30px;text-align:center;color:var(--muted)}
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);padding:12px 18px;border-radius:8px;color:#fff;background:var(--ok);display:none;max-width:90%}
+  #toast.error{background:var(--danger)}
+  @media (max-width:640px){form{grid-template-columns:1fr}}
+  @media (prefers-reduced-motion:no-preference){#toast{transition:opacity .2s}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Student Records</h1>
+    <nav aria-label="Main">
+      <button data-view="home" aria-current="page">Home</button>
+      <button data-view="add">Add student</button>
+      <button data-view="list">Student list</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section id="home" class="active">
+    <h2>Home</h2>
+    <p class="sub">Add, find, edit and remove student records. Data is stored in MongoDB Atlas through the Render API.</p>
+    <div class="stats">
+      <div class="stat"><b id="statTotal">–</b>students on record</div>
+      <div class="stat"><b id="statDepts">–</b>departments</div>
+    </div>
+    <div class="actions">
+      <button class="btn" data-go="add">Add student</button>
+      <button class="btn ghost" data-go="list">Search students</button>
+    </div>
+  </section>
+
+  <section id="add">
+    <h2 id="formTitle">Add student</h2>
+    <p class="sub" id="formSub">Fill in every field except contact, then save.</p>
+    <div class="panel">
+      <form id="studentForm">
+        <label>Student ID <input name="studentId" required placeholder="ST101"></label>
+        <label>Name <input name="name" required placeholder="Rahul Sharma"></label>
+        <label>Email <input name="email" type="email" required placeholder="rahul@example.com"></label>
+        <label>Department <input name="department" required placeholder="Computer Science"></label>
+        <label>Semester <input name="semester" type="number" min="1" max="12" required placeholder="5"></label>
+        <label>Contact <input name="contact" placeholder="9876543210"></label>
+        <div class="full actions">
+          <button class="btn" type="submit" id="saveBtn">Save student</button>
+          <button class="btn ghost" type="button" id="cancelEdit" hidden>Cancel edit</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section id="list">
+    <h2>Student list</h2>
+    <p class="sub">Search by name, student ID or department.</p>
+    <div class="toolbar">
+      <input id="searchBox" type="search" placeholder="Search students" aria-label="Search students">
+      <button class="btn" id="searchBtn">Search</button>
+      <button class="btn ghost" id="clearBtn">Clear</button>
+    </div>
+    <div class="panel table-scroll">
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Department</th><th>Sem</th><th>Contact</th><th></th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div id="empty" class="empty" hidden>No students found. Add one from the Add student page.</div>
+    </div>
+  </section>
+
+</main>
+<div id="toast" role="status"></div>
+
+<script>
+  // >>> CHANGE THIS to your Render URL after deploying the backend (no trailing slash)
+  const API_URL = "https://student-management-system-9nfo.onrender.com";
+
+  const $ = (s) => document.querySelector(s);
+  let editingId = null;
+
+  function esc(v){ const d=document.createElement("div"); d.textContent = v ?? ""; return d.innerHTML; }
+
+  function toast(msg, isError){
+    const t = $("#toast"); t.textContent = msg; t.className = isError ? "error" : "";
+    t.style.display = "block"; clearTimeout(t._h); t._h = setTimeout(()=> t.style.display="none", 3500);
+  }
+
+  function show(view){
+    document.querySelectorAll("section").forEach(s => s.classList.toggle("active", s.id === view));
+    document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
+    if (view === "list") loadStudents($("#searchBox").value.trim());
+    if (view === "home") loadStats();
+    if (view === "add" && !editingId) resetForm();
+  }
+
+  async function api(path, options){
+    const res = await fetch(API_URL + path, { headers: {"Content-Type":"application/json"}, ...options });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || "Request failed (" + res.status + ")");
+    return data;
+  }
+
+  async function loadStats(){
+    try {
+      const all = await api("/api/students");
+      $("#statTotal").textContent = all.length;
+      $("#statDepts").textContent = new Set(all.map(s => s.department.toLowerCase())).size;
+    } catch (e) { toast("Cannot reach the server. Check API_URL and that the backend is running.", true); }
+  }
+
+  async function loadStudents(search = ""){
+    try {
+      const list = await api("/api/students" + (search ? "?search=" + encodeURIComponent(search) : ""));
+      $("#rows").innerHTML = list.map(s => `
+        <tr>
+          <td>${esc(s.studentId)}</td><td>${esc(s.name)}</td><td>${esc(s.email)}</td>
+          <td>${esc(s.department)}</td><td>${esc(s.semester)}</td><td>${esc(s.contact)}</td>
+          <td class="row-actions">
+            <button class="btn ghost small" data-edit="${s._id}">Edit</button>
+            <button class="btn danger small" data-del="${s._id}">Delete</button>
+          </td>
+        </tr>`).join("");
+      $("#empty").hidden = list.length > 0;
+      window._students = list;
+    } catch (e) { toast(e.message, true); }
+  }
+
+  function resetForm(){
+    editingId = null; $("#studentForm").reset();
+    $("#formTitle").textContent = "Add student";
+    $("#formSub").textContent = "Fill in every field except contact, then save.";
+    $("#saveBtn").textContent = "Save student"; $("#cancelEdit").hidden = true;
+  }
+
+  $("#studentForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(e.target));
+    body.semester = Number(body.semester);
+    try {
+      const data = editingId
+        ? await api("/api/students/" + editingId, { method:"PUT", body: JSON.stringify(body) })
+        : await api("/api/students", { method:"POST", body: JSON.stringify(body) });
+      toast(data.message || "Saved");
+      resetForm(); show("list");
+    } catch (err) { toast(err.message, true); }
+  });
+
+  $("#cancelEdit").addEventListener("click", () => { resetForm(); show("list"); });
+
+  $("#rows").addEventListener("click", async (e) => {
+    const editId = e.target.dataset.edit, delId = e.target.dataset.del;
+    if (editId) {
+      const s = window._students.find(x => x._id === editId);
+      editingId = editId; show("add");
+      for (const k of ["studentId","name","email","department","semester","contact"]) $("#studentForm").elements[k].value = s[k] ?? "";
+      $("#formTitle").textContent = "Edit student";
+      $("#formSub").textContent = "Change the details, then save.";
+      $("#saveBtn").textContent = "Update student"; $("#cancelEdit").hidden = false;
+    }
+    if (delId && confirm("Delete this student record? This cannot be undone.")) {
+      try { const d = await api("/api/students/" + delId, { method:"DELETE" }); toast(d.message); loadStudents($("#searchBox").value.trim()); }
+      catch (err) { toast(err.message, true); }
+    }
+  });
+
+  $("#searchBtn").addEventListener("click", () => loadStudents($("#searchBox").value.trim()));
+  $("#searchBox").addEventListener("keydown", (e) => { if (e.key === "Enter") loadStudents(e.target.value.trim()); });
+  $("#clearBtn").addEventListener("click", () => { $("#searchBox").value = ""; loadStudents(); });
+
+  document.querySelectorAll("nav button").forEach(b => b.addEventListener("click", () => show(b.dataset.view)));
+  document.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => show(b.dataset.go)));
+
+  loadStats();
+</script>
+</body>
+</html>
