@@ -1,0 +1,4 @@
+[build]
+  # No build step: the site is plain HTML in the frontend folder
+  command = ""
+  publish = "frontend"
